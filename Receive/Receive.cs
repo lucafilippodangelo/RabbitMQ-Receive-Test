@@ -10,11 +10,10 @@ namespace Receive
     {
         public static void Main()
         {
-            //LD STEP001
-            //receiveVersion1();
 
-            //LD STEP002
-            receiveVersion2();
+            //receiveVersion1(); //LD STEP001
+            //receiveVersion2(); //LD STEP002
+            receiveVersion3(); //LD STEP003
         }
 
         #region region //LD STEP001
@@ -99,9 +98,49 @@ namespace Receive
         }
         #endregion
 
+        #region region // LD STEP003
+        /// <summary>
+        /// this method simulate a consumer getting messages in broadcast
+        /// </summary>
+        private static void receiveVersion3()
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            using (var connection = factory.CreateConnection())
+            using (var channel = connection.CreateModel())
+            {
+                //LD STEP003B
+                channel.ExchangeDeclare(exchange: "logs", type: "fanout");
+
+                //LD STEP003C
+                var queueName = channel.QueueDeclare().QueueName;
+
+                //LD STEP003D - the logs exchange will append messages to the queue
+                channel.QueueBind(queue: queueName,
+                                  exchange: "logs",
+                                  routingKey: "");
+
+                Console.WriteLine(" [*] Waiting for logs");
+
+                var consumer = new EventingBasicConsumer(channel);
+                consumer.Received += (model, ea) =>
+                {
+                    var body = ea.Body;
+                    var message = Encoding.UTF8.GetString(body);
+                    Console.WriteLine(" [x] {0}", message);
+                };
+                channel.BasicConsume(queue: queueName,
+                                     autoAck: true,
+                                     consumer: consumer);
+
+                Console.WriteLine(" Press [enter] to exit.");
+                Console.ReadLine();
+            }
+        }
+        #endregion
+
     }
 }
 
 
 
-
+//LD STEP003C
