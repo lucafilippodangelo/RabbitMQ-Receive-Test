@@ -10,10 +10,10 @@ namespace Receive
     {
         public static void Main()
         {
-
             //receiveVersion1(); //LD STEP001
             //receiveVersion2(); //LD STEP002
-            receiveVersion3(); //LD STEP003
+            //receiveVersion3(); //LD STEP003
+            receiveVersion4(); //LD STEP004
         }
 
         #region region //LD STEP001
@@ -101,6 +101,7 @@ namespace Receive
         #region region // LD STEP003
         /// <summary>
         /// this method simulate a consumer getting messages in broadcast
+        /// HERE WE INTRODUCE THE QUEUE BIND
         /// </summary>
         private static void receiveVersion3()
         {
@@ -114,7 +115,8 @@ namespace Receive
                 //LD STEP003C
                 var queueName = channel.QueueDeclare().QueueName;
 
-                //LD STEP003D - the logs exchange will append messages to the queue
+                //LD STEP003D - the "logs" exchange declared in the "sender" 
+                // will append messages to the queue declared in the "receiver"
                 channel.QueueBind(queue: queueName,
                                   exchange: "logs",
                                   routingKey: "");
@@ -128,6 +130,7 @@ namespace Receive
                     var message = Encoding.UTF8.GetString(body);
                     Console.WriteLine(" [x] {0}", message);
                 };
+
                 channel.BasicConsume(queue: queueName,
                                      autoAck: true,
                                      consumer: consumer);
@@ -138,9 +141,54 @@ namespace Receive
         }
         #endregion
 
+        #region region // LD STEP004
+        /// <summary>
+        /// Adding a feature to //LD STEP003, we're going to make it possible to subscribe only to a subset of the messages.
+        /// </summary>
+        private static void receiveVersion4()
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            using (var connection = factory.CreateConnection())
+            using (var channel = connection.CreateModel())
+            {
+                //LD STEP004C
+                channel.ExchangeDeclare(exchange: "direct_logs",
+                                        type: "direct");
+
+                //LD queue declaration just in "receiver"
+                var queueName = channel.QueueDeclare().QueueName;
+
+                //LD STEP004A
+                // the "direct_logs" exchange declared in the "sender" 
+                // will append onlt the messages with "routingKey: "black" 
+                // to the "queueName" declared in the "receiver"
+                channel.QueueBind(queue: queueName,
+                                  exchange: "direct_logs",
+                                  routingKey: "orange"); //severity
+
+                Console.WriteLine(" [*] Waiting for logs");
+
+                var consumer = new EventingBasicConsumer(channel);
+                consumer.Received += (model, ea) =>
+                {
+                    var body = ea.Body;
+                    var message = Encoding.UTF8.GetString(body);
+                    var routingKey = ea.RoutingKey;
+                    Console.WriteLine(" [x] Received '{0}':'{1}'", routingKey, message);
+                };
+
+                channel.BasicConsume(queue: queueName,
+                                     autoAck: true,
+                                     consumer: consumer);
+
+                Console.WriteLine(" Press [enter] to exit.");
+                Console.ReadLine();
+            }
+        }
+        #endregion
     }
 }
 
 
 
-//LD STEP003C
+
