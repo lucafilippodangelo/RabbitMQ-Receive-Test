@@ -13,7 +13,8 @@ namespace Receive
             //receiveVersion1(); //LD STEP001
             //receiveVersion2(); //LD STEP002
             //receiveVersion3(); //LD STEP003
-            receiveVersion4(); //LD STEP004
+            //receiveVersion4(); //LD STEP004
+            receiveVersion5(); //LD STEP005
         }
 
         #region region //LD STEP001
@@ -165,6 +166,45 @@ namespace Receive
                 channel.QueueBind(queue: queueName,
                                   exchange: "direct_logs",
                                   routingKey: "orange"); //severity
+
+                Console.WriteLine(" [*] Waiting for logs");
+
+                var consumer = new EventingBasicConsumer(channel);
+                consumer.Received += (model, ea) =>
+                {
+                    var body = ea.Body;
+                    var message = Encoding.UTF8.GetString(body);
+                    var routingKey = ea.RoutingKey;
+                    Console.WriteLine(" [x] Received '{0}':'{1}'", routingKey, message);
+                };
+
+                channel.BasicConsume(queue: queueName,
+                                     autoAck: true,
+                                     consumer: consumer);
+
+                Console.WriteLine(" Press [enter] to exit.");
+                Console.ReadLine();
+            }
+        }
+        #endregion
+
+        #region region // LD STEP005
+        /// <summary>
+        /// Use of Topic Exchange. Implementation of updates to the code in order to subscribe
+        /// to not only logs based on severity, but also based on the source which emitted the log./// </summary>
+        private static void receiveVersion5()
+        {
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            using (var connection = factory.CreateConnection())
+            using (var channel = connection.CreateModel())
+            {
+                channel.ExchangeDeclare(exchange: "topic_logs", type: "topic");
+                var queueName = channel.QueueDeclare().QueueName;
+
+                //LD STEP005B
+                channel.QueueBind(queue: queueName,
+                                  exchange: "topic_logs",
+                                  routingKey: "*.orange"); 
 
                 Console.WriteLine(" [*] Waiting for logs");
 
